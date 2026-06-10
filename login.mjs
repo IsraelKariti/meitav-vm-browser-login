@@ -7,9 +7,11 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const config = JSON.parse(
-  readFileSync(join(__dir, 'local.config.json'), 'utf-8')
-);
+const configFile = ['local.config.json', 'config.json'].find(f => {
+  try { readFileSync(join(__dir, f)); return true; } catch { return false; }
+});
+if (!configFile) throw new Error('No config file found (tried local.config.json, config.json)');
+const config = JSON.parse(readFileSync(join(__dir, configFile), 'utf-8'));
 const { idNumber, phoneNumber, submitForm = true } = config;
 
 // ── Phone parsing ─────────────────────────────────────────────────────────────
