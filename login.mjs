@@ -115,8 +115,13 @@ if (submitForm) {
     console.warn('Check the browser — you can submit manually.');
     await new Promise(() => {});   // keep browser open
   }
+  await page.screenshot({ path: '/app/screenshot-before.png', fullPage: true });
+  console.log('Screenshot saved: /app/screenshot-before.png');
   console.log('Clicking submit (אישור)...');
   await page.click('button#submit');
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: '/app/screenshot-after.png', fullPage: true });
+  console.log('Screenshot saved: /app/screenshot-after.png');
   console.log('Form submitted. Browser will stay open so you can see the result.');
 } else {
   console.log('submitForm = false — skipping click. Browser will stay open.');
