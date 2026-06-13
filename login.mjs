@@ -51,7 +51,7 @@ export async function doLogin(idNumber, phoneNumber) {
   // ── Navigate ────────────────────────────────────────────────────────────────
 
   console.log('Navigating to login page...');
-  await page.goto('https://customers.meitav.co.il/v2/login/loginAmit', { waitUntil: 'domcontentloaded' });
+  await page.goto('https://customers.meitav.co.il/v2/login/loginAmit', { waitUntil: 'domcontentloaded', timeout: 120_000 });
 
   // Wait until the ID input is visible before we start filling anything
   await page.waitForSelector('#id-identity-input', { state: 'visible' });
