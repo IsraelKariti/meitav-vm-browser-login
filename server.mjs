@@ -1,6 +1,7 @@
 import http from 'http';
 import { doLogin } from './login.mjs';
 import { doVerify } from './verify.mjs';
+import { doResend } from './resend.mjs';
 
 const PORT = process.env.PORT || 8080;
 
@@ -86,6 +87,27 @@ const server = http.createServer(async (req, res) => {
     doVerify(activePage, otp)
       .then(() => console.log('[/verify] OTP submitted successfully.'))
       .catch(err => console.error('[/verify] Error:', err));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'triggered' }));
+    return;
+  }
+
+  // ── POST /resend ─────────────────────────────────────────────────────────────
+  // Clicks the "resend OTP" link on the open OTP screen. Useful when the first
+  // SMS didn't arrive. Requires /login to have completed first.
+  if (req.url === '/resend') {
+    console.log('[/resend] request received');
+
+    if (!activePage) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'no active login session — call /login first' }));
+      return;
+    }
+
+    doResend(activePage)
+      .then(result => console.log(`[/resend] result: ${result}`))
+      .catch(err => console.error('[/resend] Error:', err));
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'triggered' }));
