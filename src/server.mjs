@@ -2,12 +2,16 @@ import http from 'http';
 import { doLogin } from './login.mjs';
 import { doVerify } from './verify.mjs';
 import { doResend } from './resend.mjs';
+import { doDownloadDocument } from './download_document.mjs';
 
 const PORT = process.env.PORT || 8080;
 
 // The Playwright page object returned by doLogin().
 // Null until /login completes; used by /verify to reach the already-open browser.
 let activePage = null;
+
+// True while doLogin() is running. Prevents concurrent Chrome launches.
+let loginInProgress = false;
 
 // Reads the full request body and parses it as JSON.
 function readBody(req) {
@@ -45,17 +49,26 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (loginInProgress) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'login already in progress — wait for it to complete' }));
+      return;
+    }
+
     // Fire doLogin in the background so the HTTP response is returned immediately.
     // When doLogin finishes, it gives us back the Playwright page that is now
     // sitting on the OTP screen, ready for /verify.
+    loginInProgress = true;
     doLogin(idNumber, phoneNumber)
       .then(page => {
         activePage = page;
+        loginInProgress = false;
         console.log('[/login] Credentials submitted. OTP page is ready.');
       })
       .catch(err => {
         console.error('[/login] Error:', err);
         activePage = null;
+        loginInProgress = false;
       });
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -111,6 +124,34 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'triggered' }));
+    return;
+  }
+
+  // ── POST /download_document ──────────────────────────────────────────────────
+  // Navigates to the trade forms page, expands הצהרת תושבות, clicks
+  // "לחץ להורדת הטופס", and streams the downloaded PDF back in the response.
+  if (req.url === '/download_document') {
+    console.log('[/download_document] request received');
+
+    if (!activePage) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'no active login session — call /login and /verify first' }));
+      return;
+    }
+
+    try {
+      const { buffer, filename } = await doDownloadDocument(activePage);
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': buffer.length,
+      });
+      res.end(buffer);
+    } catch (err) {
+      console.error('[/download_document] Error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
     return;
   }
 
