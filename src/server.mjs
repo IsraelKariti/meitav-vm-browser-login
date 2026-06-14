@@ -3,6 +3,7 @@ import { doLogin } from './login.mjs';
 import { doVerify } from './verify.mjs';
 import { doResend } from './resend.mjs';
 import { doDownloadDocument } from './download_document.mjs';
+import { doEmailDocument } from './email_document.mjs';
 
 const PORT = process.env.PORT || 8080;
 
@@ -12,6 +13,9 @@ let activePage = null;
 
 // True while doLogin() is running. Prevents concurrent Chrome launches.
 let loginInProgress = false;
+
+// Path and filename of the most recently downloaded document, set by /download_document.
+let lastDownload = null; // { savePath, filename }
 
 // Reads the full request body and parses it as JSON.
 function readBody(req) {
@@ -146,7 +150,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const { buffer, filename } = await doDownloadDocument(activePage);
+      const { buffer, filename, savePath } = await doDownloadDocument(activePage);
+      lastDownload = { savePath, filename };
       res.writeHead(200, {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
@@ -155,6 +160,31 @@ const server = http.createServer(async (req, res) => {
       res.end(buffer);
     } catch (err) {
       console.error('[/download_document] Error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── POST /email_document ─────────────────────────────────────────────────────
+  // Emails the most recently downloaded document to israelkariti@gmail.com.
+  // Requires /download_document to have been called first.
+  // Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables to be set.
+  if (req.url === '/email_document') {
+    console.log('[/email_document] request received');
+
+    if (!lastDownload) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'no document available — call /download_document first' }));
+      return;
+    }
+
+    try {
+      await doEmailDocument(lastDownload.savePath, lastDownload.filename);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'sent', filename: lastDownload.filename, to: 'israelkariti@gmail.com' }));
+    } catch (err) {
+      console.error('[/email_document] Error:', err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: err.message }));
     }

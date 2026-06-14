@@ -33,5 +33,5 @@ export async function doDownloadDocument(page) {
   await download.saveAs(savePath);
   console.log(`[download_document] Saved to ${savePath}`);
 
-  return { buffer: readFileSync(savePath), filename };
+  return { buffer: readFileSync(savePath), filename, savePath };
 }
