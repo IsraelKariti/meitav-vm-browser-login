@@ -95,14 +95,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Fire doVerify in the background so the HTTP response is returned immediately.
-    // Pull the screenshots from /app/ with flyctl sftp to see the result.
-    doVerify(activePage, otp)
-      .then(() => console.log('[/verify] OTP submitted successfully.'))
-      .catch(err => console.error('[/verify] Error:', err));
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'triggered' }));
+    // Await doVerify so the HTTP response is only sent after the OTP has been
+    // submitted and the page has navigated to the authenticated area. This prevents
+    // a race condition where the caller (e.g. n8n) immediately fires /download_document
+    // before the session is actually authenticated.
+    try {
+      await doVerify(activePage, otp);
+      console.log('[/verify] OTP submitted successfully.');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'verified' }));
+    } catch (err) {
+      console.error('[/verify] Error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
     return;
   }
 
