@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { writeFileSync } from 'fs';
+import { writeFileSync, unlinkSync } from 'fs';
 import { execSync } from 'child_process';
 
 const VALID_PREFIXES = ['050', '051', '052', '053', '054', '055', '057', '058'];
@@ -32,6 +32,17 @@ export async function doLogin(idNumber, phoneNumber) {
 
   try { execSync('pkill -9 chrome', { stdio: 'ignore' }); } catch {}
   await new Promise(r => setTimeout(r, 500));
+
+  for (const f of [
+    '/app/screenshot-01-page-loaded.png',
+    '/app/screenshot-02-credentials-filled.png',
+    '/app/screenshot-03-otp-screen.png',
+    '/app/screenshot-04-otp-filled.png',
+    '/app/screenshot-05-authenticated.png',
+    '/app/screenshot-resend.png',
+  ]) {
+    try { unlinkSync(f); } catch {}
+  }
 
   console.log('Launching Chrome...');
   const browser = await chromium.launch({

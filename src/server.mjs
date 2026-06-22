@@ -185,11 +185,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    let step = 'verify';
     try {
       await doVerify(activePage, otp);
+      step = 'download';
       console.log('[/verify_and_deliver] OTP verified, downloading document...');
       const { savePath, filename } = await doDownloadDocument(activePage);
       lastDownload = { savePath, filename };
+      step = 'email';
       console.log('[/verify_and_deliver] Document downloaded, emailing...');
       await doEmailDocument(savePath, filename);
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -197,7 +200,7 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('[/verify_and_deliver] Error:', err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
+      res.end(JSON.stringify({ error: err.message, step }));
     }
     return;
   }
