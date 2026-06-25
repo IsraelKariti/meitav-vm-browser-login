@@ -43,7 +43,7 @@ export async function doVerify(page, otp) {
 
   console.log('Clicking OTP submit (אישור)...');
   await page.click('button.login-id-btn');
-  await page.waitForTimeout(3000); // let the page navigate to the authenticated area
+  await page.waitForURL(url => !url.includes('/login'), { timeout: 30_000 });
 
   // ── Stage 05: authenticated — result page after OTP submit ──────────────────
 
